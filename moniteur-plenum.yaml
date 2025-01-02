@@ -1,0 +1,248 @@
+esphome:
+  name: moniteur-plenum
+  friendly_name: Moniteur Plénum
+  on_boot:
+    priority: 800
+    then:
+      - lambda: |-
+          pinMode(7, INPUT);
+          digitalWrite(7, HIGH);
+          delay(100);
+
+esp32:
+  board: esp32-s3-devkitc-1
+  framework:
+    type: arduino
+
+# Enable logging
+logger:
+
+# Enable Home Assistant API
+api:
+  encryption:
+    key: "HdYeAS4VLi1NnPBrDlxlZzvRgP1dyPbbOimSD+f+mwM="
+
+mqtt:
+  id: mqtt_client
+  broker: 192.168.0.186
+  port: 1883
+  username: !secret mqtt_username
+  password: !secret mqtt_password
+  discovery: false
+  reboot_timeout: 6min
+
+ota:
+  - platform: esphome
+    password: "c05cda4604bc7be30af301d753d94067"
+
+wifi:
+  networks:
+  - ssid: !secret wifi_ssid
+    password: !secret wifi_password
+
+  # Enable fallback hotspot (captive portal) in case wifi connection fails
+  ap:
+    ssid: "Moniteur-Plenum Fallback Hotspot"
+    password: "E8kOGCyC8g2g"
+
+captive_portal:
+
+external_components:
+  - source: github://Option-Zero/esphome-components@max17048
+    components: [max17048]
+
+#bme68x_bsec2_i2c:
+#  address: 0x77
+#  model: bme680
+#  operating_age: 28d
+#  sample_rate: LP
+#  supply_voltage: 3.3V
+
+# I2C setup
+i2c:
+- id: bus_a
+  sda: GPIO3
+  scl: GPIO4
+  scan: true
+
+##########################################################################################################################################################
+#                                                                  SENSORS                                                                               #
+##########################################################################################################################################################
+sensor:
+
+  #####################################
+  #              ENS160               #
+  #####################################  # Initializes the ENS160 (Total VOC and Equivalent CO2)
+  - platform: ens160_i2c
+    tvoc:
+      name: "COVt"
+      id: tvoc
+      internal: true
+    eco2:
+      name: "éCO₂"
+      id: eco2
+      internal: true
+    aqi:
+      id: ens160_air_quality_index
+      name: "IQAI"
+      internal: true
+    update_interval: 60s
+    address: 0x52
+    compensation:
+      temperature: temperature
+      humidity: humidity
+
+  #####################################
+  #            SEN54 - AQI            #
+  #####################################  # Initializes the SEN54 (Particulate Matter)
+  - platform: sen5x
+    i2c_id: bus_a
+    address: 0x69
+    temperature:
+      name: "SEN54 - Temp"
+      id: sen54_temp
+    humidity:
+      name: "SEN54 - Humidité"
+      id: sen54_hum
+    pm_1_0:
+      name: "PM1.0"
+      id: sen54_pm1
+    pm_2_5:
+      name: "PM2.5"
+      id: sen54_pm2_5
+    pm_4_0:
+      name: "PM4.0"
+      id: sen54_pm4
+    pm_10_0:
+      name: "PM10.0"
+      id: sen54_pm10
+    voc:
+      name: "SEN54 - Index VOC"
+      id: sen54_voc
+    update_interval: 60s
+    store_baseline: True
+    acceleration_mode: medium
+
+  #####################################
+  #               SCD41               #
+  #####################################  # Initializes the SCD41 (CO2, Temperature and Humidity)
+  - platform: scd4x
+    co2:
+      name: "CO₂"
+      id: co2
+    temperature:
+      name: "Température"
+      id: temperature
+    humidity:
+      name: "Humidité"
+      id: humidity
+
+  #####################################
+  #           BME680 - TPH            #
+  #####################################
+#  - platform: bme68x_bsec2
+#    temperature:
+#      name: "Temperature"
+#      id: "BME68x_Temperature"
+#      filters:
+#        offset: -2.3
+#    pressure:
+#      name: "Pression"
+#      id: "BME68x_Pressure"
+#    humidity:
+#      name: "Humidité"
+#      id: "BME68x_Humidity"
+#      filters:
+#        offset: 1.5
+#    iaq:
+#      name: "Air - Indice de la Qualité de l'Air"
+#      id: iaq
+#    co2_equivalent:
+#      name: "Air - Équivalent CO²"
+#      id: "BME68x_eCO2"
+#    breath_voc_equivalent:
+#      name: "Air - Équivalent bVOC"
+#      id: "BME68x_eBVOC"
+
+  #####################################
+  #     MAX17048 - Battery Monitor    #
+  #####################################
+#  - platform: max17048
+#    battery_voltage:
+#      name: "Élect - Batt V"
+#    battery_level:
+#      name: "Élect - Batt %"
+#    rate:
+#      name: "Élect - Taux de Décharge"
+#    update_interval: 900s
+
+##########################################################################################################################################################
+#                                                             TEXT SENSORS                                                                               #
+##########################################################################################################################################################
+text_sensor:
+
+#  - platform: bme68x_bsec2
+#    iaq_accuracy:
+#      name: "Air - État du Senseur IQA"
+
+#  - platform: template
+#    name: "Air - Index IQA"
+#    lambda: |-
+#      if ( int(id(iaq).state) <= 50) {
+#        return {"Excellent"};
+#      }
+#      else if (int(id(iaq).state) >= 51 && int(id(iaq).state) <= 100) {
+#        return {"Bon"};
+#      }
+#      else if (int(id(iaq).state) >= 101 && int(id(iaq).state) <= 150) {
+#        return {"Bof"};
+#      }
+#      else if (int(id(iaq).state) >= 151 && int(id(iaq).state) <= 200) {
+#        return {"Pas Tellement"};
+#      }
+#      else if (int(id(iaq).state) >= 201 && int(id(iaq).state) <= 250) {
+#        return {"Heum... Non?"};
+#      }
+#      else if (int(id(iaq).state) >= 251 && int(id(iaq).state) <= 350) {
+#        return {"WTF?!"};
+#      }
+#      else if (int(id(iaq).state) >= 351) {
+#        return {"IL SE PASSE DE QUOI DE GRAVE"};
+#      }
+#      else {
+#        return {"Ça a chié"};
+#      }
+
+#  - platform: template
+#    name: "Air - Taux de CO²"
+#    icon: "mdi:checkbox-marked-circle-outline"
+#    lambda: |-
+#      if ( int(id(BME68x_eCO2).state) <= 600) {
+#        return {"Excellent"};
+#      }
+#      else if (int(id(BME68x_eCO2).state) >= 601 && int(id(BME68x_eCO2).state) <= 1000) {
+#        return {"Normal"};
+#      }
+#      else if (int(id(BME68x_eCO2).state) >= 1001 && int(id(BME68x_eCO2).state) <= 1500) {
+#        return {"Pas tellement"};
+#      }
+#      else if (int(id(BME68x_eCO2).state) >= 1501 && int(id(BME68x_eCO2).state) <= 2000) {
+#        return {"WTF?!"};
+#      }
+#      else if (int(id(BME68x_eCO2).state) >= 2001 && int(id(BME68x_eCO2).state) <= 3000) {
+#        return {"DANGER!"};
+#      }
+#      else if (int(id(BME68x_eCO2).state) >= 3001) {
+#        return {"!!!!EXTRÈME DANGER!!!!"};
+#      }
+#      else {
+#        return {"Ça a chié"};
+#      }
+
+##########################################################################################################################################################
+#                                                                   BUTTON                                                                               #
+##########################################################################################################################################################
+button:
+  - platform: restart
+    name: "Réinitialisation"
+    id: reset
